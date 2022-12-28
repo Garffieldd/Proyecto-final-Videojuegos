@@ -1,17 +1,18 @@
 
 
 const config = {
-    type: Phaser.WEBGL,
-    width: 1920,
-    height: 1080,   
+    type: Phaser.AUTO,
+    width: 400,
+    height: 250,   
     scene: [Scene,FinalScene],
     scale: { 
+        zoom: 2,
         mode:Phaser.Scale.FIT} ,
     physics: {
         default: 'arcade',
         arcade: {
             debug: true,
-            gravity: { y: 500},
+            gravity: { y: 0},
         },
     },
 };
