@@ -8,6 +8,7 @@ class Scene extends Phaser.Scene {
         
        
         this.playerVelocity = 100;
+        this.playerDiagVelocity = 69.4;
         this.ogreSpeed = 50;
         //this.initial = 3;
         this.UP = 0;
@@ -15,6 +16,7 @@ class Scene extends Phaser.Scene {
         this.LEFT = 2;
         this.RIGHT = 3;
         this.initial = this.RIGHT;
+        this.randomMoveTime = 2000;
         
     }
     
@@ -61,12 +63,12 @@ class Scene extends Phaser.Scene {
         */
        
        //Generar Jugador
-        this.player = this.physics.add.sprite(170,80,'player')
+        this.player = this.physics.add.sprite(170,80,'player');
         this.player.setScale(1); 
         this.player.setSize(11,15,true);
         this.player.setOffset(3,9);
-        this.physics.add.collider(this.player, wallsLayer)
-        this.cameras.main.startFollow(this.player,true)
+        this.physics.add.collider(this.player, wallsLayer);
+        this.cameras.main.startFollow(this.player,true);
 
         this.KeyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
         this.KeyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
@@ -80,13 +82,8 @@ class Scene extends Phaser.Scene {
        this.physics.world.enable(this.container)
        this.container.add(this.player)
         */
-        //Generar enemigo
-        this.ogre = this.physics.add.sprite(180,90,'ogre');
-        //this.ogre.onCollide = true;
-        this.physics.add.collider(this.ogre, wallsLayer);
-
-        this.physics.world.on('handleTileCollision', this.handleTileCollision);
-
+       
+            
         this.anims.create({
             key: 'walk',
             frames: this.anims.generateFrameNumbers('player',{start: 4, end:7}),
@@ -103,8 +100,35 @@ class Scene extends Phaser.Scene {
 
         this.player.play('stopped');
         
+        const randomDirection = (exclude) => {
+            let newDirection = Phaser.Math.Between(0,3)
+            while (newDirection === exclude){
+                newDirection = Phaser.Math.Between(0,3)
+            }
+            return newDirection
+        }
+        this.newOgre();
+        this.physics.add.collider(this.ogre, wallsLayer, () => {
+            this.initial = randomDirection(this.initial);
+            console.log('estoy funcionando')
+        });
+
+        this.time.addEvent({
+            delay: this.randomMoveTime,
+            callback:() => {
+                this.initial = randomDirection(this.initial);
+            },
+            loop:true
+        })
         
-        this.anims.create({
+    };
+
+    newOgre(){
+         //Generar enemigo
+         this.ogre = this.physics.add.sprite(180,140,'ogre');
+         
+         
+         this.anims.create({
             key: 'walkingOgre',
             frames: this.anims.generateFrameNumbers('ogre',{start: 4, end:7}),
             frameRate:10,
@@ -120,20 +144,10 @@ class Scene extends Phaser.Scene {
 
         this.ogre.play('stoppedOgre');
 
-    };
 
-    
-
-    handleTileCollision(gameObject, tile){
-        if (gameObject !== this)
-        {
-            return
-        }
-
-        const newDirection = Phaser.Math.Between(0,3)
-        this.initial = newDirection;
-        console.log(this.initial)
     }
+
+   
 
     
 // Actualizacion de los elementos del videojuego
@@ -166,6 +180,38 @@ class Scene extends Phaser.Scene {
         console.log('D key pressed')
         this.player.flipX = false;
         this.player.setVelocityX(this.playerVelocity);
+        this.player.play('walk',true);
+    }
+    // Diagonal movement
+    // Up and left
+    if (this.KeyA.isDown && this.KeyW.isDown)
+{
+    this.player.body.setVelocityX(-this.playerDiagVelocity);
+    this.player.body.setVelocityY(-this.playerDiagVelocity);
+    this.player.play('walk',true);
+}
+
+    // Up and right
+    if (this.KeyD.isDown && this.KeyW.isDown)
+    {
+        this.player.body.setVelocityX(this.playerDiagVelocity);
+        this.player.body.setVelocityY(-this.playerDiagVelocity);
+        this.player.play('walk',true);
+    }
+
+    // Down and right
+    if (this.KeyD.isDown && this.KeyS.isDown)
+    {
+        this.player.body.setVelocityX(this.playerDiagVelocity);
+        this.player.body.setVelocityY(this.playerDiagVelocity);
+        this.player.play('walk',true);
+    }
+
+    // Down and left
+    if (this.KeyA.isDown && this.KeyS.isDown)
+    {
+        this.player.body.setVelocityX(-this.playerDiagVelocity);
+        this.player.body.setVelocityY(this.playerDiagVelocity);
         this.player.play('walk',true);
     }
 
