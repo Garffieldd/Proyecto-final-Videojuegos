@@ -25,6 +25,7 @@ class Scene extends Phaser.Scene {
         this.initial = this.RIGHT;
         this.randomMoveTime = 2000;   
         this.health = 3;
+        this.random = Math.floor(Math.random() * 2);
     }
     
     // Carga de los assets
@@ -36,7 +37,14 @@ class Scene extends Phaser.Scene {
         this.load.spritesheet('player','assets/img/knight_spritesheet.png', {frameWidth: 16, frameHeight:23});
         this.load.spritesheet('ogre','assets/img/ogre_spritesheet.png', {frameWidth: 21, frameHeight:27});
         this.load.image('tiles', 'assets/img/Tiles/0x72_DungeonTilesetII_v1.4.png')
-        this.load.tilemapTiledJSON('dungeon', 'assets/img/Tiles/dungeon.json')
+        this.load.tilemapTiledJSON('dungeon', `assets/img/Tiles/mapa${this.random}.json`)
+        if (this.random == 1){
+            console.log("mapa 1")
+        }else if(this.random == 0){
+            console.log("mapa 0")
+        }else{
+            return
+        }
         this.load.image('katana','assets/img/weapon_katana.png' )
         this.load.image('fullHeart','assets/img/fulled heart.png')
         this.load.image('semifulledHeart','assets/img/semifulled heart.png')
@@ -54,14 +62,39 @@ class Scene extends Phaser.Scene {
 // Creacion de los elementos del videojuego
  create ()
     {
+        this.scene.run('GameUI')
+
         
         //Generar Dungeon
         const map = this.make.tilemap({key: 'dungeon', tileWidth: 16, tileHeight: 16});
         const tileset = map.addTilesetImage('dungeon', 'tiles')
+        const config = 
         map.createLayer('Ground', tileset)
+        map.createLayer('Furnitures', tileset)
+        const hitbox = map.createFromObjects('Hitbox', 1)
         const wallsLayer = map.createLayer('Walls', tileset)
+        this.i = 0;
+
+        //console.log(map);
+
         
-        wallsLayer.setCollisionByProperty({collide: true})
+        for (this.i; hitbox.length ;this.i++ ){
+            this.physics.add.collider(this.player,hitbox[this.i])
+            console.log(hitbox[this.i])
+            //hitbox[i].setCollisionByProperty({collide: true})
+        }
+
+        //hitbox.setCollisionByProperty({collide: true})
+
+        
+        
+        //console.log(hitbox);
+        //console.log(wallsLayer);
+        
+        //hitbox[1].setCollisionByProperty({collide: true})
+        //hitbox[2].setCollisionByProperty({collide: true})
+
+        
         this.animatedTiles.init(map)
 
 
@@ -77,7 +110,12 @@ class Scene extends Phaser.Scene {
         */
        
        //Generar Jugador
+       if (this.random == 0) {
         this.player = this.physics.add.sprite(170,80,'player');
+       }else if (this.random == 1){
+        this.player = this.physics.add.sprite(230,150,'player');
+       }
+        
         this.player.setScale(1); 
         this.player.setSize(11,15,true);
         this.player.setOffset(3,9);
@@ -136,9 +174,8 @@ class Scene extends Phaser.Scene {
 
         this.physics.add.collider(this.ogre, this.player, this.collideWithOgre, undefined, this);
         
-        this.UIlife();
+        //this.UIlife();
         
-
         this.time.addEvent({
             delay: this.randomMoveTime,
             callback:() => {
@@ -154,7 +191,7 @@ class Scene extends Phaser.Scene {
     collideWithOgre(ogre,player){
          //console.log(ogre)
          //console.log(player)
-
+        var health = this.scene.get('GameUI');
         const xDirection = player.x - ogre.x;
         const yDirection = player.y - ogre.y;
 
@@ -176,7 +213,7 @@ class Scene extends Phaser.Scene {
         player.setTint(0xff0000);
         this.damagedTime = 0
         this.healthState = this.takingDamage;
-        this.healthHandler();
+        health.healthHandler();
         console.log(this.health);
         
         
@@ -208,23 +245,9 @@ class Scene extends Phaser.Scene {
 
     }
 
-    UIlife(){
-        this.hearts = this.add.group()
-
-        this.hearts.createMultiple({
-            key: 'fullHeart',
-            setXY: {
-                x: -10,
-                y: -30,
-                stepX: 16
-            },
-            quantity: 3
-        })
-        //this.healthHandler();
-    }
-
-    
+    /*
     healthHandler(){
+
         this.hearts.children.each((gameObject,index) => {
             const heart = gameObject
             if (index < this.health){
@@ -237,7 +260,7 @@ class Scene extends Phaser.Scene {
         })
         
     }
-
+    */
    
 
     
@@ -390,6 +413,43 @@ class Scene extends Phaser.Scene {
     
 
     
+}
+
+class GameUI extends Phaser.Scene{
+    constructor(){
+        super('GameUI')
+    }
+
+    create(){
+
+        this.hearts = this.add.group()
+
+        this.hearts.createMultiple({
+            key: 'fullHeart',
+            setXY: {
+                x: 15,
+                y: 15,
+                stepX: 16
+            },
+            quantity: 3
+        })
+    }
+
+    healthHandler(){
+
+        this.hearts.children.each((gameObject,index) => {
+            const heart = gameObject
+            if (index < this.health){
+                console.log(index);
+                console.log(this.health);
+                heart.setTexture('fullHeart')
+            }else{
+                heart.setTexture('emptyHeart')
+            }
+        })
+        
+    }
+
 }
 
 class FinalScene extends Phaser.Scene {
