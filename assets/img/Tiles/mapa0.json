@@ -228,7 +228,62 @@
          "draworder":"topdown",
          "id":4,
          "name":"Hitbox",
-         "objects":[],
+         "objects":[
+                {
+                 "class":"",
+                 "height":132,
+                 "id":1,
+                 "name":"",
+                 "rotation":0,
+                 "visible":true,
+                 "width":4,
+                 "x":43,
+                 "y":28
+                }, 
+                {
+                 "class":"",
+                 "height":5.5,
+                 "id":2,
+                 "name":"",
+                 "rotation":0,
+                 "visible":true,
+                 "width":233,
+                 "x":43,
+                 "y":169.5
+                }, 
+                {
+                 "class":"",
+                 "height":66,
+                 "id":3,
+                 "name":"",
+                 "rotation":0,
+                 "visible":true,
+                 "width":3.5,
+                 "x":272.5,
+                 "y":109
+                }, 
+                {
+                 "class":"",
+                 "height":35,
+                 "id":5,
+                 "name":"",
+                 "rotation":0,
+                 "visible":true,
+                 "width":4,
+                 "x":272,
+                 "y":28.5
+                }, 
+                {
+                 "class":"",
+                 "height":4.5,
+                 "id":6,
+                 "name":"",
+                 "rotation":0,
+                 "visible":true,
+                 "width":233,
+                 "x":43.5,
+                 "y":28
+                }],
          "opacity":1,
          "type":"objectgroup",
          "visible":true,
@@ -347,7 +402,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":1,
+ "nextobjectid":7,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.9.2",

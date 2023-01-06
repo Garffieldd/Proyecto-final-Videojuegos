@@ -71,20 +71,33 @@ class Scene extends Phaser.Scene {
         const config = 
         map.createLayer('Ground', tileset)
         map.createLayer('Furnitures', tileset)
-        const hitbox = map.createFromObjects('Hitbox', 1)
+        const hitbox = map.createFromObjects('Hitbox');
         const wallsLayer = map.createLayer('Walls', tileset)
         this.i = 0;
 
-        //console.log(map);
+        //this.wallArray = Object.values(wallsLayer)
+        this.hitboxArray = Object.values(hitbox)
 
         
-        for (this.i; hitbox.length ;this.i++ ){
-            this.physics.add.collider(this.player,hitbox[this.i])
-            console.log(hitbox[this.i])
-            //hitbox[i].setCollisionByProperty({collide: true})
-        }
+        //this.physics.add.collider(group)
+        
+        
+        
 
-        //hitbox.setCollisionByProperty({collide: true})
+        //console.log(this.hitboxArray)
+
+        
+                 
+        /*
+        for (this.i; this.hitboxArray.length ;this.i++ ){
+            //this.physics.add.collider(this.player,this.hitboxArray[this.i])
+            //console.log(hitbox[this.i])
+            this.hitboxArray[this.i].setCollisionByProperty({collide: true})
+        }
+       */
+        
+
+        //setCollisionByProperty({collide: true})
 
         
         
@@ -167,10 +180,7 @@ class Scene extends Phaser.Scene {
             return newDirection
         }
         this.newOgre();
-        this.physics.add.collider(this.ogre, wallsLayer, () => {
-            this.initial = randomDirection(this.initial);
-            //console.log('estoy funcionando')
-        });
+        
 
         this.physics.add.collider(this.ogre, this.player, this.collideWithOgre, undefined, this);
         
@@ -183,7 +193,35 @@ class Scene extends Phaser.Scene {
             },
             loop:true
         })
+
+        //Hitboxes
         
+        const gids = {}
+        const group = this.add.group()
+        const layer = map.getObjectLayer('Hitbox')
+        layer.objects.forEach(object => {
+        const {gid, id} = object
+        //I do this check because createFromObjects will
+        //have already created objects once I use the same gid.
+        if (!gids[gid]) { 
+            const objects = map.createFromObjects('Hitbox', gid)
+            objects.reduce((group, sprite) => {
+            group.add(sprite)
+            this.physics.world.enable(sprite)
+            this.physics.add.collider(this.player,sprite)
+            this.physics.add.collider(this.ogre, sprite, () => {
+                this.initial = randomDirection(this.initial);
+                //console.log('estoy funcionando')
+            });
+            sprite.setVisible(false)
+            sprite.body.setImmovable()
+            return group
+            }, group)
+        }
+        })
+        
+        
+          
     };
 
     
@@ -440,8 +478,8 @@ class GameUI extends Phaser.Scene{
         this.hearts.children.each((gameObject,index) => {
             const heart = gameObject
             if (index < this.health){
-                console.log(index);
-                console.log(this.health);
+                //console.log(index);
+                //console.log(this.health);
                 heart.setTexture('fullHeart')
             }else{
                 heart.setTexture('emptyHeart')
