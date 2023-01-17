@@ -268,6 +268,7 @@ class Scene extends Phaser.Scene {
         
 
         if (lives.health === 0){
+            this.music.stop()
             this.scene.start('GameOver')
             console.log('Game Over')
         }
@@ -352,7 +353,12 @@ class Scene extends Phaser.Scene {
         if(ogre["ogreHealthState"] === ogre["this.takingDamage"]){
             return
         }
-    
+        
+        if(this.Ogros.countActive(true)===0){
+            this.music.stop()
+            this.scene.start('Winner')
+        }
+
         arrow.destroy()
         ogre.setTint(0xff0000);
         
@@ -701,23 +707,68 @@ class Score extends Phaser.Scene{
 
 }
 
+class WinningScene extends Phaser.Scene{
+    constructor(){
+        super('Winner');
+    }
+
+    preload()
+    {
+        this.load.setBaseURL('http://localhost/Proyecto-final-Videojuegos');
+    }
+}
 
 class FinalScene extends Phaser.Scene {
     constructor(){
         super('GameOver');
     };
+
+   
     
     // Carga de los assets del Game over
     preload()
     {
         this.load.setBaseURL('http://localhost/Proyecto-final-Videojuegos');
-        
+         // //${this.random}
+        this.load.image('fond', 'assets/img/GameOver/fondo.jpg')
+        this.load.image('button' ,'assets/img/GameOver/button_try_again.png');
+        this.load.image('button2' ,'assets/img/GameOver/button_try_again_2.png');
     };
 
     //Creacion de la pantalla del Game Over
     create()
     {
-        this.input.on('pointerdown',() => this.playAgain())
+        
+        this.add.sprite(config.width/2,config.height/2,'fond')
+        //this.input.on('pointerdown',() => this.playAgain())
+        
+        
+        this.button2 = this.add.image(200,200, "button2")
+        this.button2.setVisible(false)
+        this.button = this.add.image(200,200,"button")
+        this.button.setDepth(2)
+        //this.button.setVisible(false);
+       // this.button2.setVisible(false);
+
+        .setInteractive()
+        .on('pointerdown', () => 
+        this.playAgain())
+        
+        this.button.on('pointerover', () =>
+        this.button2.setVisible(true) 
+        )
+        this.button.on('pointerover', () =>
+        this.button.setVisible(false) 
+        )
+        this.button.on('pointerout', () =>
+        this.button2.setVisible(false)
+        )
+        this.button.on('pointerout', () =>
+        this.button.setVisible(true)
+        )
+        
+        
+        
     };
 
     
@@ -726,6 +777,11 @@ class FinalScene extends Phaser.Scene {
     playAgain(){
         this.scene.start('theGame');
     };
+
+    update(){
+
+        
+    }
 }
 
 
