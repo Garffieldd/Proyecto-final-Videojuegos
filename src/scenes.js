@@ -58,16 +58,21 @@ class Scene extends Phaser.Scene {
         this.healthState = this.chill;
         this.damagedTime = 0;
         //ogre vars
-        this.ogreSpeed = 50;
+        this.ogreSpeed = 75;
         this.randomMoveTime = 2000;   
         //this.health = 3;
         this.random = Math.floor(Math.random() * 2);
-        this.rebound = false;
+        this.reboundO = false;
+        this.reboundS = false;
+        this.direction = this.directionRIGHT
+        this.directionRIGHT = 1
+        this.directionLEFT = 0
+        this.directionUP = 2
+        this.directionDOWN = 3
+
+        this.defaultScore = 100;
         
-        
-        
-        
-        
+       
         
     }
     
@@ -79,6 +84,9 @@ class Scene extends Phaser.Scene {
         //Imagenes
         this.load.spritesheet('player','assets/img/knight_spritesheet.png', {frameWidth: 16, frameHeight:23});
         this.load.spritesheet('ogre','assets/img/ogre_spritesheet.png', {frameWidth: 21, frameHeight:27});
+        this.load.spritesheet('playerAttack','assets/img/attack_knight_spritesheet.png', {frameWidth: 15, frameHeight:23});
+        this.load.image('arrow', 'assets/img/weapon_arrow.png')
+        this.load.image('arrowUp', 'assets/img/weapon_arrowUp.png')
         this.load.image('tiles', 'assets/img/Tiles/0x72_DungeonTilesetII_v1.4.png')
         this.load.tilemapTiledJSON('dungeon', `assets/img/Tiles/mapa${this.random}.json`)
         this.load.tilemapTiledJSON('map0', "assets/img/Tiles/mapa0.json")
@@ -97,17 +105,23 @@ class Scene extends Phaser.Scene {
         //Plugin para tiles animados
         this.load.scenePlugin('AnimatedTiles', 'https://raw.githubusercontent.com/nkholski/phaser-animated-tiles/master/dist/AnimatedTiles.js', 'animatedTiles', 'animatedTiles');
         //Musica
-        
+        this.load.audio('music', 'assets/music/Musica_pro.mp3')
 
         // Fuente
         
+        this.load.bitmapFont('fire', 'assets/img/Font/azo-fire.png', 'assets/img/Font/azo-fire.xml');
   
     };
 // Creacion de los elementos del videojuego
  create ()
     {
-        this.scene.run('GameUI')
-        
+
+        this.music = this.sound.add('music');
+        this.music.loop = true;
+        this.music.play();
+
+        this.scene.run('GameUI');
+        this.scene.run('Score');
         //Generar Dungeon
         this.map = this.make.tilemap({key: 'dungeon', tileWidth: 16, tileHeight: 16});
         this.tileset = this.map.addTilesetImage('dungeon', 'tiles')
@@ -128,22 +142,6 @@ class Scene extends Phaser.Scene {
         
         spikesLayer.renderDebug(this.add.graphics());
         
-        /*
-        this.KeyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
-        this.KeyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
-        this.KeyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
-        this.KeyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-        this.KeySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-        */
- 
-        /*
-        const debugGraphics = this.add.graphics().setAlpha(0.7)
-        wallsLayer.renderDebug(debugGraphics, {
-            titleColor: null,
-            collidingTileColor: new Phaser.Display.Color(243,234,48,255),
-            faceColor: new Phaser.Display.Color(40,39,37,255)
-        })
-        */
        
        //Generar Jugador
        if (this.random == 0) {
@@ -162,7 +160,8 @@ class Scene extends Phaser.Scene {
             stopped: new StoppedState(),
            walk: new WalkState(),
             attack: new AttackState(),
-            bound: new BoundState(),
+            boundO: new BoundStateOgre(),
+            boundS: new BoundStateSpike(),
           }, [this, this.player]);
 
         this.KeyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
@@ -190,15 +189,11 @@ class Scene extends Phaser.Scene {
 
         this.anims.create({
             key: 'attack',
-            frames: this.anims.generateFrameNumbers('player',{start: 0, end:3}),
-            frameRate:20,
+            frames: this.anims.generateFrameNumbers('playerAttack',{start: 0, end:3}),
+            frameRate:7,
             repeat: 0,
         });
 
-        
-       
-
-        
         this.randomDirection = (exclude) => {
             let newDirection = Phaser.Math.Between(0,3)
             while (newDirection === exclude){
@@ -211,9 +206,9 @@ class Scene extends Phaser.Scene {
         
         this.physics.add.collider(this.Ogros, this.player, this.collideWithOgre, undefined, this);
 
-        //console.log(this.Ogros)
+        this.createArrows = this.newArrow();
 
-
+        
         //Hitboxes
         
         const gids = {}
@@ -221,6 +216,7 @@ class Scene extends Phaser.Scene {
         const layer = this.map.getObjectLayer('Hitbox')
         layer.objects.forEach(object => {
         const {gid, id} = object
+        
         //I do this check because createFromObjects will
         //have already created objects once I use the same gid.
         if (!gids[gid]) { 
@@ -232,10 +228,18 @@ class Scene extends Phaser.Scene {
             this.physics.add.collider(this.Ogros, sprite, () => {
                 this.Ogros.children.each(ogreObj =>{
                     ogreObj["initial"] = this.randomDirection(ogreObj["initial"])
+                    
                 })
                 
 
             });
+            /*
+            this.physics.add.collider(this.createArrows,sprite, () => {
+                this.createArrows.children.each(arrowObj =>{
+                    arrowObj.destroy()
+                })
+            });
+          */
             sprite.setVisible(false)
             sprite.body.setImmovable()
             return group
@@ -245,47 +249,23 @@ class Scene extends Phaser.Scene {
         
         this.physics.add.collider(this.player,newInstances,this.changeInstance,undefined,this);
         this.physics.add.collider(this.player, spikesLayer, this.collideWithSpikes, undefined, this);
-
-        /*
-        this.input.on('pointerdown', () => this.attack(),this);
-
-    
-        this.input.keyboard.on('keydown', (event) => {
-                if (event.keyCode === 32) {
-                    this.attack();
-                }
-            });
+        this.physics.add.collider(this.createArrows,this.Ogros, this.arrowCollideWithOgre,undefined, this);
         
-        this.player.on('animationComplete', this.animationComplete, this) ;
-       */
+        
           
     };
 
-/*
-    attack(){
-        this.player.play('attack',true)
-        console.log('ok')
-    }
 
-    animationComplete(animation, frame, sprite){
-        if(animation.key === 'attack') {
-            this.player.play('stopped');
-        }
-    }
-*/
     collideWithSpikes(player , spikesLayer){
         var lives = this.scene.get('GameUI');
         
 
         const xDirection = player.x - spikesLayer.x*17;
         const yDirection = player.y - spikesLayer.y*17;
-        //console.log(spikesLayer.x)
-        //console.log(spikesLayer.y)
-        //console.log(player.x)
-
-        const newDirection = new Phaser.Math.Vector2(xDirection,yDirection).normalize().scale(200);
         
-        //lives.health--;
+
+        this.newDirectionPCS = new Phaser.Math.Vector2(xDirection,yDirection).normalize().scale(200);
+        
 
         if (lives.health === 0){
             this.scene.start('GameOver')
@@ -296,19 +276,18 @@ class Scene extends Phaser.Scene {
             return
         }
 
-        player.setVelocity(newDirection.x,newDirection.y)
+        this.reboundS = true;
+        player.setVelocity(this.newDirectionPCS.x,this.newDirectionPCS.y)
         player.setTint(0xff0000);
         this.damagedTime = 0
         this.healthState = this.takingDamage;
         lives.healthHandler();
-
-        //console.log(lives.health);
         
     }
 
     changeInstance(player,instance){
-        this.player.x = 500
-        this.player.y = 300
+        this.player.x = 230
+        this.player.y = 150
             
         
     }
@@ -319,11 +298,12 @@ class Scene extends Phaser.Scene {
         const xDirection = player.x - ogre.x;
         const yDirection = player.y - ogre.y;
        
-        this.newDirection = new Phaser.Math.Vector2(xDirection,yDirection).normalize().scale(200);
+        this.newDirectionPCO = new Phaser.Math.Vector2(xDirection,yDirection).normalize().scale(200);
 
         //lives.health--;
 
         if (lives.health === 0){
+            this.music.stop();
             this.scene.start('GameOver')
             console.log('Game Over')
         }
@@ -333,13 +313,110 @@ class Scene extends Phaser.Scene {
         }
 
         
-        this.rebound = true;
+        this.reboundO = true;
         player.setTint(0xff0000);
         this.damagedTime = 0
         this.healthState = this.takingDamage;
         lives.healthHandler();
-        //console.log(lives.health);
-        //player.setVelocity(newDirection.x,newDirection.y);
+       
+    }
+
+    newArrow(){
+        this.arrows = this.physics.add.group()
+
+            return this.arrows
+  
+    }
+
+    arrowCollideWithOgre(ogre,arrow){
+
+        const scoreNumber = this.scene.get('Score');
+        const xDirection = ogre.x - arrow.x;
+        const yDirection = ogre.y - arrow.y;
+        const message = "Score: "
+       
+        
+        this.newDirectionACO = new Phaser.Math.Vector2(xDirection,yDirection).normalize().scale(100);
+
+        if(ogre["ogreHealth"] == 0){
+
+        arrow.destroy()
+        this.Ogros.killAndHide(ogre)
+        this.Ogros.remove(ogre)
+        scoreNumber.score = scoreNumber.score + this.defaultScore
+        scoreNumber.scoreMessage = message.concat(scoreNumber.score.toString());
+        scoreNumber.text = scoreNumber.text.setText(scoreNumber.scoreMessage);
+        
+        }
+
+        if(ogre["ogreHealthState"] === ogre["this.takingDamage"]){
+            return
+        }
+    
+        arrow.destroy()
+        ogre.setTint(0xff0000);
+        
+        ogre["ogreDamagedTime"] = 0
+        ogre["ogreHealthState"] = ogre["ogreTakingDamage"];
+
+        console.log(scoreNumber.score)
+
+  }
+
+        
+
+
+    throwArrow(){
+        
+        const arrow = this.arrows.get(this.player.x, this.player.y, 'arrow')
+        //const arrowUP = this.arrows.get(this.player.x, this.player.y, 'arrowUp')
+        
+        
+        if (this.KeyA.isDown) {
+            arrow.setVelocity(-300,0);
+            arrow.flipX = true;
+            this.direction = this.directionLEFT;
+          }  if (this.KeyD.isDown) {
+            arrow.setVelocity(300,0);
+            arrow.flipX = false;
+            this.direction = this.directionRIGHT;
+          } if (this.KeyW.isDown) {
+            arrow.setVelocity(0,-300);
+            arrow.flipX = false;
+            this.direction = this.directionUP;
+          } if (this.KeyS.isDown) {
+            arrow.setVelocity(0,300);
+            arrow.flipX = true;
+            this.direction = this.directionDOWN;
+
+          }
+
+          switch (this.direction){
+            case this.directionLEFT:
+                arrow.setVelocity(-300,0);
+                arrow.flipX = true;
+
+                break
+            
+            case this.directionRIGHT:
+                arrow.setVelocity(300,0);
+                arrow.flipX = false;
+                    
+                break
+
+            case this.directionUP:
+                arrow.setVelocity(0,-300);
+                arrow.flipX = false;
+                arrow.angle += 270 
+                break
+
+            case this.directionDOWN:
+                arrow.setVelocity(0,300);
+                arrow.flipX = true;
+                arrow.angle += 270    
+                break
+        }
+
         
     }
 
@@ -353,6 +430,7 @@ class Scene extends Phaser.Scene {
         this.ogreGen.objects.forEach(ogreObj =>{
             this.ogre = this.physics.add.sprite(ogreObj.x + ogreObj.width*0.5 ,ogreObj.y - ogreObj.height*0.5,'ogre')
             this.ogres.add(this.ogre)
+            
         
         })
 
@@ -387,7 +465,44 @@ class Scene extends Phaser.Scene {
                 configurable: true,
                 writable: true
             });
-    
+
+            Object.defineProperty(ogreObj, "ogreChill", {
+                value: 0,
+                enumerable: true,
+                configurable: true,
+                writable: true
+            });
+
+            Object.defineProperty(ogreObj, "ogreTakingDamage", {
+                value: 1,
+                enumerable: true,
+                configurable: true,
+                writable: true
+            });
+
+            Object.defineProperty(ogreObj, "ogreHealthState", {
+                value: ogreObj["ogreChill"],
+                enumerable: true,
+                configurable: true,
+                writable: true
+            });
+
+            Object.defineProperty(ogreObj, "ogreDamagedTime", {
+                value: 0,
+                enumerable: true,
+                configurable: true,
+                writable: true
+            });
+
+            Object.defineProperty(ogreObj, "ogreHealth", {
+                value: 3,
+                enumerable: true,
+                configurable: true,
+                writable: true
+            });
+
+
+
             this.time.addEvent({
                 delay: this.randomMoveTime,
                 callback:() => {
@@ -395,12 +510,14 @@ class Scene extends Phaser.Scene {
                 },
                 loop:true
             })
+
+            //this.physics.add.collider(this.createArrows, ogreObj, undefined, this);
         })
 
         
         
 
-        //console.log(ogres)
+        
 
          
          this.anims.create({
@@ -427,11 +544,9 @@ class Scene extends Phaser.Scene {
 // Actualizacion de los elementos del videojuego
  update(time,deltatime)
     {   
-        
+       
+
         this.stateMachine.step()
-        
-        //this.random3 = Math.floor(Math.random() * 2);
-         //Animacion de daño
          
     switch (this.healthState){
         case this.chill:
@@ -458,110 +573,37 @@ class Scene extends Phaser.Scene {
         return
     }
 
-        
-        
-        //Controlador del Jugador
-       // const velocityVector = new Phaser.Math.Vector2(this.dirX,this.dirY).normalize() * this.playerVelocity;
-       /*
-       const velocityVector = new Phaser.Math.Vector2(this.playerVelocity * this.dirX,this.playerVelocity * this.dirY).normalize().scale(200);
+    // this.ogreChill = 0;
+    // this.ogretakingDamage = 1;
+    // this.ogreHealthState = this.ogreChill
+    // this.ogreDamagedTime = 0;
+
+    this.Ogros.children.each((gameObject,index) => {
+        const og = gameObject
+        switch (og["ogreHealthState"]){
+            case og["ogreChill"]:
+                
+                break
+            
+            case og["ogreTakingDamage"]:
+                og.setVelocity(this.newDirectionACO.x,this.newDirectionACO.y)
+                og["ogreDamagedTime"] += deltatime
+                if (og["ogreDamagedTime"] >= 300){
+                    og["ogreHealth"]--;
+                    og["ogreHealthState"] = og["ogreChill"];
+                    og.setVelocity(0);
+                    og.clearTint();
+                    og["ogreDamagedTime"] = 0;
+                    
+                    
+                }
+                break
+        }
     
-
-    if (this.KeySpace.isDown)
-    {
-        this.player.stop('stopped',true)
-        this.player.stop('walk',true)
-        this.player.play('attack',true)
-        console.log("Space pressed")
-    }
-    if(!this.KeyW.isDown && !this.KeyA.isDown && !this.KeyS.isDown && !this.KeyD.isDown){    
-        this.player.setVelocity(0,0);
-        this.player.play('stopped',true);
-    }
-    if(this.KeyW.isDown) {
-        
-        this.dirY = -1;
-        this.player.setVelocity(0,velocityVector.y);
-        
-        this.player.play('walk',true);
-        
-    } 
-
-    if(this.KeyA.isDown) {
-        
-        this.dirX = -1;
-        this.player.flipX = true;
-        this.player.setVelocity(velocityVector.x,0);
-        this.player.play('walk',true);
-        
-    } 
-    if(this.KeyS.isDown) {
-        
-        this.dirY = 1;
-        this.player.setVelocity(0,velocityVector.y);
-        this.player.play('walk',true);
-        
-    } 
-    if(this.KeyD.isDown) {
-        
-        this.dirX = 1;
-        this.player.flipX = false;
-        this.player.setVelocity(velocityVector.x,0);
-        this.player.play('walk',true);
-        
-    }
-
-    
-    // Diagonal movement
-    // Up and left
-
-    const velocityDiagVector = new Phaser.Math.Vector2(this.playerDiagVelocity * this.dirX,this.playerDiagVelocity * this.dirY).normalize().scale(100);
-    
-    if (this.KeyA.isDown && this.KeyW.isDown)
-{
-    this.dirX = -1
-    this.dirY = -1
-    this.player.body.setVelocity(velocityDiagVector.x,velocityDiagVector.y);
-    this.player.play('walk',true);
-    
-   
-}
-
-    // Up and right
-
-    if (this.KeyD.isDown && this.KeyW.isDown)
-    {
-        this.dirX = 1
-        this.dirY = -1
-        this.player.body.setVelocity(velocityDiagVector.x,velocityDiagVector.y);
-        this.player.play('walk',true);
-        
-    }
-
-    // Down and right
-    if (this.KeyD.isDown && this.KeyS.isDown)
-    {
-
-        this.dirX = 1
-        this.dirY = 1
-        this.player.body.setVelocity(velocityDiagVector.x,velocityDiagVector.y);
-        this.player.play('walk',true);
-        
-    }
-
-    // Down and left
-    
-    if (this.KeyA.isDown && this.KeyS.isDown)
-    {
-        this.dirX = -1
-        this.dirY = 1
-        this.player.body.setVelocity(velocityDiagVector.x,velocityDiagVector.y);
-        this.player.play('walk',true);
-        
-    }
-    
-    */
-    
-    
+        if (og["ogreHealthState"] === og["ogreTakingDamage"]){
+            return
+        }
+    })
     
 
     // IA del ogro
@@ -571,20 +613,22 @@ class Scene extends Phaser.Scene {
         switch (ogres["initial"]){
             
             case ogres["UP"]:
+                if (ogres["ogreHealthState"] != ogres["ogreTakingDamage"])
                     ogres.setVelocity(0,-this.ogreSpeed)
                 break
             
             case ogres["DOWN"]:
-                
+                if (ogres["ogreHealthState"] != ogres["ogreTakingDamage"])
                     ogres.setVelocity(0,this.ogreSpeed)
     
                 break
 
             case ogres["LEFT"]:
+                if (ogres["ogreHealthState"] != ogres["ogreTakingDamage"])
                     ogres.setVelocity(-this.ogreSpeed,0)
                 break
             case ogres["RIGHT"]:
-                
+                if (ogres["ogreHealthState"] != ogres["ogreTakingDamage"])
                     ogres.setVelocity(this.ogreSpeed,0)
            
                 break
@@ -606,7 +650,7 @@ class GameUI extends Phaser.Scene{
     create(){
 
         this.health = 2;
-        ;
+        
 
         this.hearts = this.add.group()
 
@@ -638,6 +682,24 @@ class GameUI extends Phaser.Scene{
 
 }
 
+class Score extends Phaser.Scene{
+    constructor(){
+        super('Score');
+    };
+    
+
+    create(){
+
+        this.score = 0;
+        this.message = "Score: ";
+        this.scoreMessage = this.message.concat(this.score.toString());
+        this.text = this.add.bitmapText(300, 225, 'fire' , this.scoreMessage, 15);
+        //this.text.setTint(0xff00ff, 0xffff00, 0x00ff00, 0xff0000);
+        this.text.setDepth(2);
+
+    }
+
+}
 
 
 class FinalScene extends Phaser.Scene {
@@ -655,7 +717,7 @@ class FinalScene extends Phaser.Scene {
     //Creacion de la pantalla del Game Over
     create()
     {
-        
+        this.input.on('pointerdown',() => this.playAgain())
     };
 
     
@@ -671,8 +733,8 @@ class FinalScene extends Phaser.Scene {
 class StoppedState extends State {
      enter(scene, player) {
         player.setVelocity(0);
-        player.anims.play("walk");
         player.anims.stop();
+        player.anims.play("stopped",true);
       }
     
       execute(scene, player) {
@@ -696,8 +758,13 @@ class StoppedState extends State {
 
         //Transition to Bound if a Ogre hit you
 
-        if (scene.rebound == true) {
-            scene.stateMachine.transition('bound');
+        if (scene.reboundO == true) {
+            scene.stateMachine.transition('boundO');
+            return;
+          }
+
+          if (scene.reboundS == true) {
+            scene.stateMachine.transition('boundS');
             return;
           }
       }
@@ -717,14 +784,19 @@ class StoppedState extends State {
         //var mainScene = this.scene.get('theGame')
         // Transition to swing if pressing space
         if (this.KeySpace.isDown) {
-          scene.stateMachine.transition('attack');
+            scene.stateMachine.transition('attack');
           return;
         }
 
-        if (scene.rebound == true) {
-            scene.stateMachine.transition('bound');
+        if (scene.reboundO == true) {
+            scene.stateMachine.transition('boundO');
             return;
           }
+
+        if (scene.reboundS ==true) {
+            scene.stateMachine.transition('boundS')
+            return;
+        }
       
         const velocityVector = new Phaser.Math.Vector2(this.playerVelocity,this.playerVelocity).normalize().scale(200);
         // Transition to idle if not pressing movement keys
@@ -737,22 +809,30 @@ class StoppedState extends State {
         player.setVelocity(0);
         if (this.KeyW.isDown) {
           player.setVelocityY(-velocityVector.y);
+          player.flipY = false;
+          scene.direction = scene.directionUP;
           
           //player.direction = 'up';
         }  if (this.KeyS.isDown) {
           player.setVelocityY(velocityVector.y);
+          player.flipY = false;
+          scene.direction = scene.directionDOWN;
           
           //player.direction = 'down';
         }
         if (this.KeyA.isDown) {
           player.setVelocityX(-velocityVector.x);
           player.flipX = true;
+          scene.direction = scene.directionLEFT;
           //player.direction = 'left';
         }  if (this.KeyD.isDown) {
           player.setVelocityX(velocityVector.x);
           player.flipX = false;
+          scene.direction = scene.directionRIGHT;
           //player.direction = 'right';
         }
+
+            
 
         // Diagonal movement
     // Up and left
@@ -795,18 +875,38 @@ class StoppedState extends State {
     class AttackState extends State {
       enter(scene, player) {
         player.setVelocity(0);
-        player.anims.play('attack');
+        player.anims.play('attack',true);
+        
         player.once('animationcomplete', () => {
+          scene.throwArrow();
           scene.stateMachine.transition('walk');
         });
     }
 }
 
-class BoundState extends State {
+class BoundStateOgre extends State {
     enter(scene, player) {
         console.log("ahh me corro")
-        player.setVelocity(scene.newDirection.x,scene.newDirection.y);
-        scene.rebound = false;
+        player.setVelocity(scene.newDirectionPCO.x,scene.newDirectionPCO.y);
+        scene.reboundO = false;
+
+      
+  }
+
+  execute (scene,player){
+    if (scene.damagedTime == 0){
+        scene.stateMachine.transition('walk');
+    }
+    
+  }
+  
+}
+
+class BoundStateSpike extends State {
+    enter(scene, player) {
+        console.log("ahh me corro x2")
+        player.setVelocity(scene.newDirectionPCS.x,scene.newDirectionPCS.y);
+        scene.reboundS = false;
 
       
   }

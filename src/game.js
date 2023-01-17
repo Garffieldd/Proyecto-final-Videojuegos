@@ -4,7 +4,7 @@ const config = {
     type: Phaser.AUTO,
     width: 400,
     height: 250,   
-    scene: [Scene, GameUI, FinalScene],
+    scene: [Scene, GameUI, Score, FinalScene],
     scale: { 
         zoom: 2,
         mode:Phaser.Scale.FIT
