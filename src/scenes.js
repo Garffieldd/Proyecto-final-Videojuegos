@@ -15,20 +15,20 @@
       this.stateArgs = stateArgs;
        this.state = null;
    
-       // State instances get access to the state machine via this.stateMachine.
+       
        for (const state of Object.values(this.possibleStates)) {
          state.stateMachine = this;
        }
      }
    
      step() {
-       // On the first step, the state is null and we need to initialize the first state.
+       
        if (this.state === null) {
          this.state = this.initialState;
          this.possibleStates[this.state].enter(...this.stateArgs);
        }
    
-       // Run the current state's execute
+       
        this.possibleStates[this.state].execute(...this.stateArgs);
      }
    
@@ -60,7 +60,7 @@ class Scene extends Phaser.Scene {
         //ogre vars
         this.ogreSpeed = 75;
         this.randomMoveTime = 2000;   
-        //this.health = 3;
+       
         this.random = Math.floor(Math.random() * 2);
         this.reboundO = false;
         this.reboundS = false;
@@ -91,13 +91,6 @@ class Scene extends Phaser.Scene {
         this.load.tilemapTiledJSON('dungeon', `assets/img/Tiles/mapa${this.random}.json`)
         this.load.tilemapTiledJSON('map0', "assets/img/Tiles/mapa0.json")
         this.load.tilemapTiledJSON('map1', "assets/img/Tiles/mapa1.json")
-        if (this.random == 1){
-            console.log("mapa 1")
-        }else if(this.random == 0){
-            console.log("mapa 0")
-        }else{
-            return
-        }
         this.load.image('fullHeart','assets/img/fulled heart.png')
         this.load.image('halfHeart','assets/img/semifulled heart.png')
         this.load.image('emptyHeart','assets/img/empty heart.png')
@@ -106,6 +99,14 @@ class Scene extends Phaser.Scene {
         this.load.scenePlugin('AnimatedTiles', 'https://raw.githubusercontent.com/nkholski/phaser-animated-tiles/master/dist/AnimatedTiles.js', 'animatedTiles', 'animatedTiles');
         //Musica
         this.load.audio('music', 'assets/music/Musica_pro.mp3')
+        this.load.audio('soundEarnPoint', 'assets/music/earn_points_sound.wav' )
+        this.load.audio('soundGetHit', 'assets/music/getting_hit_sound.wav' )
+        this.load.audio('soundLose', 'assets/music/lose-sound.wav' )
+        this.load.audio('soundWin', 'assets/music/win-sound.wav' )
+        this.load.audio('soundBow', 'assets/music/bow_shot_sound.mp3' )
+        this.load.audio('soundOgreDamaged', 'assets/music/ogreDamaged.mp3')
+        this.load.audio('soundCollideNewInstance', 'assets/music/soundCollideNewInstance.mp3' )
+        this.load.audio('soundCollideWall', 'assets/music/soundCollideWall.mp3' )
 
         // Fuente
         
@@ -120,15 +121,24 @@ class Scene extends Phaser.Scene {
         this.music.loop = true;
         this.music.play();
 
+        this.soundEarnPoint = this.sound.add('soundEarnPoint')
+        this.soundGetHit = this.sound.add('soundGetHit')
+        this.soundLose = this.sound.add('soundLose')
+        this.SoundWin = this.sound.add('soundWin') 
+        this.soundBow = this.sound.add('soundBow')
+        this.soundOgreDamaged = this.sound.add('soundOgreDamaged')
+        this.soundCollideNewInstance = this.sound.add('soundCollideNewInstance')
+        this.soundCollideWall = this.sound.add('soundCollideWall')
+
         this.scene.run('GameUI');
         this.scene.run('Score');
         //Generar Dungeon
         this.map = this.make.tilemap({key: 'dungeon', tileWidth: 16, tileHeight: 16});
         this.tileset = this.map.addTilesetImage('dungeon', 'tiles')
-        //const config = 
+        
         this.map.createLayer('Ground', this.tileset)
         this.map.createLayer('Furnitures', this.tileset)
-        //const hitbox = map.createFromObjects('Hitbox');
+        
         const wallsLayer = this.map.createLayer('Walls', this.tileset)
         const newInstances = this.map.createLayer('NewInstance', this.tileset)
         const spikesLayer = this.map.createLayer('Spikes', this.tileset)
@@ -140,7 +150,7 @@ class Scene extends Phaser.Scene {
         spikesLayer.setCollisionByProperty({harmful:true})
 
         
-        spikesLayer.renderDebug(this.add.graphics());
+        //spikesLayer.renderDebug(this.add.graphics());
         
        
        //Generar Jugador
@@ -153,7 +163,7 @@ class Scene extends Phaser.Scene {
         this.player.setScale(1); 
         this.player.setSize(11,15,true);
         this.player.setOffset(3,9);
-        //this.physics.add.collider(this.player, wallsLayer);
+        
         this.cameras.main.startFollow(this.player, true);
 
         this.stateMachine = new StateMachine('stopped', {
@@ -217,29 +227,23 @@ class Scene extends Phaser.Scene {
         layer.objects.forEach(object => {
         const {gid, id} = object
         
-        //I do this check because createFromObjects will
-        //have already created objects once I use the same gid.
         if (!gids[gid]) { 
             const objects = this.map.createFromObjects('Hitbox', gid)
             objects.reduce((group, sprite) => {
             group.add(sprite)
             this.physics.world.enable(sprite)
-            this.physics.add.collider(this.player,sprite)
+            this.physics.add.collider(this.player,sprite,this.wallSound,undefined,this);
             this.physics.add.collider(this.Ogros, sprite, () => {
                 this.Ogros.children.each(ogreObj =>{
                     ogreObj["initial"] = this.randomDirection(ogreObj["initial"])
                     
                 })
+            
                 
 
             });
-            /*
-            this.physics.add.collider(this.createArrows,sprite, () => {
-                this.createArrows.children.each(arrowObj =>{
-                    arrowObj.destroy()
-                })
-            });
-          */
+
+            //this.physics.add.collider(this.createArrows, sprite)
             sprite.setVisible(false)
             sprite.body.setImmovable()
             return group
@@ -255,6 +259,9 @@ class Scene extends Phaser.Scene {
           
     };
 
+    wallSound(){
+        this.soundCollideWall.play();
+    }
 
     collideWithSpikes(player , spikesLayer){
         var lives = this.scene.get('GameUI');
@@ -266,31 +273,46 @@ class Scene extends Phaser.Scene {
 
         this.newDirectionPCS = new Phaser.Math.Vector2(xDirection,yDirection).normalize().scale(200);
         
-
-        if (lives.health === 0){
-            this.music.stop()
-            this.scene.start('GameOver')
-            console.log('Game Over')
-        }
-
         if(this.healthState === this.takingDamage){
             return
         }
+        if (lives.health == 0){
+            this.healthState = this.chill;
+            this.music.stop()
+            this.soundLose.play();
+            this.scene.start('GameOver')
+        }else{
+            this.healthState = this.takingDamage;
+        }
+
+        
 
         this.reboundS = true;
         player.setVelocity(this.newDirectionPCS.x,this.newDirectionPCS.y)
         player.setTint(0xff0000);
         this.damagedTime = 0
-        this.healthState = this.takingDamage;
         lives.healthHandler();
+        this.soundGetHit.play();
         
     }
 
     changeInstance(player,instance){
-        this.player.x = 230
-        this.player.y = 150
-            
+        let someInstancesMap0 = [[768,1039] , [190,575], [1359,63]]
+        let someInstancesMap1 = [[230,150] , [1100,656], [767,480]]
+        this.randomInstance = Math.floor(Math.random() * 3)
+
+        if (this.random == 0){
+            this.player.x = someInstancesMap0[this.randomInstance][0]
+            this.player.y = someInstancesMap0[this.randomInstance][1]
+        }else if (this.random == 1){
+            this.player.x = someInstancesMap1[this.randomInstance][0]
+            this.player.y = someInstancesMap1[this.randomInstance][1]
+        }else{
+
+        }
         
+        this.soundCollideNewInstance.play();
+     
     }
 
     collideWithOgre(ogre,player){
@@ -301,25 +323,26 @@ class Scene extends Phaser.Scene {
        
         this.newDirectionPCO = new Phaser.Math.Vector2(xDirection,yDirection).normalize().scale(200);
 
-        //lives.health--;
-
-        if (lives.health === 0){
-            this.music.stop();
-            this.scene.start('GameOver')
-            console.log('Game Over')
-        }
+        
 
         if(this.healthState === this.takingDamage){
             return
         }
 
-        
+        if (lives.health == 0){
+            this.healthState = this.chill;
+            this.music.stop();
+            this.soundLose.play();
+            this.scene.start('GameOver')
+        }else{
+            this.healthState = this.takingDamage;
+        }
+
         this.reboundO = true;
         player.setTint(0xff0000);
         this.damagedTime = 0
-        this.healthState = this.takingDamage;
         lives.healthHandler();
-       
+        this.soundGetHit.play();
     }
 
     newArrow(){
@@ -330,7 +353,6 @@ class Scene extends Phaser.Scene {
     }
 
     arrowCollideWithOgre(ogre,arrow){
-
         const scoreNumber = this.scene.get('Score');
         const xDirection = ogre.x - arrow.x;
         const yDirection = ogre.y - arrow.y;
@@ -347,25 +369,26 @@ class Scene extends Phaser.Scene {
         scoreNumber.score = scoreNumber.score + this.defaultScore
         scoreNumber.scoreMessage = message.concat(scoreNumber.score.toString());
         scoreNumber.text = scoreNumber.text.setText(scoreNumber.scoreMessage);
+        this.soundEarnPoint.play()
+
         
         }
 
-        if(ogre["ogreHealthState"] === ogre["this.takingDamage"]){
+        if(ogre["ogreHealthState"] === ogre["ogreTakingDamage"]){
             return
         }
         
         if(this.Ogros.countActive(true)===0){
             this.music.stop()
+            this.SoundWin.play()
             this.scene.start('Winner')
         }
 
         arrow.destroy()
         ogre.setTint(0xff0000);
-        
+        this.soundOgreDamaged.play();
         ogre["ogreDamagedTime"] = 0
         ogre["ogreHealthState"] = ogre["ogreTakingDamage"];
-
-        console.log(scoreNumber.score)
 
   }
 
@@ -375,9 +398,8 @@ class Scene extends Phaser.Scene {
     throwArrow(){
         
         const arrow = this.arrows.get(this.player.x, this.player.y, 'arrow')
-        //const arrowUP = this.arrows.get(this.player.x, this.player.y, 'arrowUp')
-        
-        
+        this.soundBow.play();
+        console.log(this.direction)
         if (this.KeyA.isDown) {
             arrow.setVelocity(-300,0);
             arrow.flipX = true;
@@ -421,8 +443,19 @@ class Scene extends Phaser.Scene {
                 arrow.flipX = true;
                 arrow.angle += 270    
                 break
+
+            case undefined:
+                arrow.setVelocity(300,0);
+                arrow.flipX = false;
+                    
+                break
         }
 
+        
+
+
+
+        
         
     }
 
@@ -435,6 +468,22 @@ class Scene extends Phaser.Scene {
         this.ogres = this.add.group()
         this.ogreGen.objects.forEach(ogreObj =>{
             this.ogre = this.physics.add.sprite(ogreObj.x + ogreObj.width*0.5 ,ogreObj.y - ogreObj.height*0.5,'ogre')
+            
+            this.anims.create({
+                key: 'walkingOgre',
+                frames: this.anims.generateFrameNumbers('ogre',{start: 4, end:7}),
+                frameRate:10,
+                repeat:-1,
+            }),
+            
+            this.anims.create({
+                key: 'stoppedOgre',
+                frames: this.anims.generateFrameNumbers('ogre',{start: 0, end:3}),
+                frameRate:10,
+                repeat:-1,
+            }),
+    
+            this.ogre.play('stoppedOgre')
             this.ogres.add(this.ogre)
             
         
@@ -507,40 +556,14 @@ class Scene extends Phaser.Scene {
                 writable: true
             });
 
-
-
             this.time.addEvent({
                 delay: this.randomMoveTime,
                 callback:() => {
                     ogreObj["initial"] = this.randomDirection(ogreObj["initial"]);
                 },
                 loop:true
-            })
-
-            //this.physics.add.collider(this.createArrows, ogreObj, undefined, this);
+            }) 
         })
-
-        
-        
-
-        
-
-         
-         this.anims.create({
-            key: 'walkingOgre',
-            frames: this.anims.generateFrameNumbers('ogre',{start: 4, end:7}),
-            frameRate:10,
-            repeat:-1,
-        });
-        
-        this.anims.create({
-            key: 'stoppedOgre',
-            frames: this.anims.generateFrameNumbers('ogre',{start: 0, end:3}),
-            frameRate:10,
-            repeat:-1,
-        });
-
-        this.ogre.play('stoppedOgre'); 
 
         return this.ogres
 
@@ -564,13 +587,11 @@ class Scene extends Phaser.Scene {
             this.damagedTime += deltatime
             if (this.damagedTime >= 300){
                     
-                lives.health--;
                 this.healthState = this.chill;
                 this.player.setVelocity(0);
                 this.player.clearTint();
                 this.damagedTime = 0;
-                
-                
+                lives.health--;      
             }
             break
     }
@@ -578,11 +599,6 @@ class Scene extends Phaser.Scene {
     if (this.healthState === this.takingDamage){
         return
     }
-
-    // this.ogreChill = 0;
-    // this.ogretakingDamage = 1;
-    // this.ogreHealthState = this.ogreChill
-    // this.ogreDamagedTime = 0;
 
     this.Ogros.children.each((gameObject,index) => {
         const og = gameObject
@@ -632,10 +648,12 @@ class Scene extends Phaser.Scene {
             case ogres["LEFT"]:
                 if (ogres["ogreHealthState"] != ogres["ogreTakingDamage"])
                     ogres.setVelocity(-this.ogreSpeed,0)
+                    ogres.flipX = true
                 break
             case ogres["RIGHT"]:
                 if (ogres["ogreHealthState"] != ogres["ogreTakingDamage"])
                     ogres.setVelocity(this.ogreSpeed,0)
+                    ogres.flipX = false
            
                 break
         }
@@ -656,8 +674,6 @@ class GameUI extends Phaser.Scene{
     create(){
 
         this.health = 2;
-        
-
         this.hearts = this.add.group()
 
         this.hearts.createMultiple({
@@ -700,10 +716,11 @@ class Score extends Phaser.Scene{
         this.message = "Score: ";
         this.scoreMessage = this.message.concat(this.score.toString());
         this.text = this.add.bitmapText(300, 225, 'fire' , this.scoreMessage, 15);
-        //this.text.setTint(0xff00ff, 0xffff00, 0x00ff00, 0xff0000);
         this.text.setDepth(2);
 
     }
+
+    
 
 }
 
@@ -715,7 +732,35 @@ class WinningScene extends Phaser.Scene{
     preload()
     {
         this.load.setBaseURL('http://localhost/Proyecto-final-Videojuegos');
+        this.load.image('fondo', 'assets/img/Win/fondo.jpg' )
+        this.load.image('button' ,'assets/img/GameOver/button_try_again.png');
+        this.load.audio('soundTryAgain', 'assets/music/try-again-sound.wav' )
     }
+    
+    create()
+    {
+        this.add.sprite(config.width/2,config.height/2,'fondo')
+        this.soundTryAgain = this.sound.add('soundTryAgain')
+        const button = this.add.image(200,200,"button")
+        button.setDepth(2)
+
+        button.setInteractive()
+              
+        button.on('pointerdown', () =>
+        this.soundTryAgain.play() )
+        button.on('pointerdown', () => 
+        this.playAgain() )  
+        
+        button.on('pointerover', () =>
+        button.setTint(0x000000) )
+
+        button.on('pointerout', () =>
+        button.clearTint() )
+    }
+
+    playAgain(){
+        this.scene.start('theGame');
+    };
 }
 
 class FinalScene extends Phaser.Scene {
@@ -729,10 +774,9 @@ class FinalScene extends Phaser.Scene {
     preload()
     {
         this.load.setBaseURL('http://localhost/Proyecto-final-Videojuegos');
-         // //${this.random}
         this.load.image('fond', 'assets/img/GameOver/fondo.jpg')
         this.load.image('button' ,'assets/img/GameOver/button_try_again.png');
-        this.load.image('button2' ,'assets/img/GameOver/button_try_again_2.png');
+        this.load.audio('soundTryAgain', 'assets/music/try-again-sound.wav' )
     };
 
     //Creacion de la pantalla del Game Over
@@ -740,34 +784,22 @@ class FinalScene extends Phaser.Scene {
     {
         
         this.add.sprite(config.width/2,config.height/2,'fond')
-        //this.input.on('pointerdown',() => this.playAgain())
-        
-        
-        this.button2 = this.add.image(200,200, "button2")
-        this.button2.setVisible(false)
-        this.button = this.add.image(200,200,"button")
-        this.button.setDepth(2)
-        //this.button.setVisible(false);
-       // this.button2.setVisible(false);
+        this.soundTryAgain = this.sound.add('soundTryAgain')
+        const button = this.add.image(200,200,"button")
+        button.setDepth(2)
 
-        .setInteractive()
-        .on('pointerdown', () => 
-        this.playAgain())
+        button.setInteractive()
+              
+        button.on('pointerdown', () =>
+        this.soundTryAgain.play() )
+        button.on('pointerdown', () => 
+        this.playAgain() )  
         
-        this.button.on('pointerover', () =>
-        this.button2.setVisible(true) 
-        )
-        this.button.on('pointerover', () =>
-        this.button.setVisible(false) 
-        )
-        this.button.on('pointerout', () =>
-        this.button2.setVisible(false)
-        )
-        this.button.on('pointerout', () =>
-        this.button.setVisible(true)
-        )
-        
-        
+        button.on('pointerover', () =>
+        button.setTint(0x000000) )
+
+        button.on('pointerout', () =>
+        button.clearTint() )
         
     };
 
@@ -794,13 +826,13 @@ class StoppedState extends State {
       }
     
       execute(scene, player) {
-        //const {left, right, up, down, space} = scene.keys;
+        
         this.KeyW = scene.KeyW;
         this.KeyA = scene.KeyA;
         this.KeyS = scene.KeyS;
         this.KeyD = scene.KeyD;
         this.KeySpace = scene.KeySpace;
-        // Transition to swing if pressing space
+        // Transition to attack if pressing space
         if (this.KeySpace.isDown) {
           scene.stateMachine.transition('attack');
           return;
@@ -812,7 +844,7 @@ class StoppedState extends State {
           return;
         }
 
-        //Transition to Bound if a Ogre hit you
+        //Transition to Bound if a Ogre is hitting you
 
         if (scene.reboundO == true) {
             scene.stateMachine.transition('boundO');
@@ -828,7 +860,7 @@ class StoppedState extends State {
     
     class WalkState extends State {
       execute(scene, player) {
-        //const {left, right, up, down, space} = scene.keys;
+        
         this.KeyW = scene.KeyW;
         this.KeyA = scene.KeyA;
         this.KeyS = scene.KeyS;
@@ -837,8 +869,8 @@ class StoppedState extends State {
         this.playerVelocity = 100
         this.playerDiagVelocity = 69.4;
         
-        //var mainScene = this.scene.get('theGame')
-        // Transition to swing if pressing space
+        
+        // Transition to attack if pressing space
         if (this.KeySpace.isDown) {
             scene.stateMachine.transition('attack');
           return;
@@ -855,7 +887,7 @@ class StoppedState extends State {
         }
       
         const velocityVector = new Phaser.Math.Vector2(this.playerVelocity,this.playerVelocity).normalize().scale(200);
-        // Transition to idle if not pressing movement keys
+        // Transition to stop if not pressing movement keys
         if (!(this.KeyA.isDown || this.KeyD.isDown || this.KeyW.isDown || this.KeyS.isDown)) {
             scene.stateMachine.transition('stopped');
             
@@ -868,24 +900,24 @@ class StoppedState extends State {
           player.flipY = false;
           scene.direction = scene.directionUP;
           
-          //player.direction = 'up';
+          
         }  if (this.KeyS.isDown) {
           player.setVelocityY(velocityVector.y);
           player.flipY = false;
           scene.direction = scene.directionDOWN;
           
-          //player.direction = 'down';
+          
         }
         if (this.KeyA.isDown) {
           player.setVelocityX(-velocityVector.x);
           player.flipX = true;
           scene.direction = scene.directionLEFT;
-          //player.direction = 'left';
+          
         }  if (this.KeyD.isDown) {
           player.setVelocityX(velocityVector.x);
           player.flipX = false;
           scene.direction = scene.directionRIGHT;
-          //player.direction = 'right';
+          
         }
 
             
@@ -942,7 +974,6 @@ class StoppedState extends State {
 
 class BoundStateOgre extends State {
     enter(scene, player) {
-        console.log("ahh me corro")
         player.setVelocity(scene.newDirectionPCO.x,scene.newDirectionPCO.y);
         scene.reboundO = false;
 
@@ -960,7 +991,6 @@ class BoundStateOgre extends State {
 
 class BoundStateSpike extends State {
     enter(scene, player) {
-        console.log("ahh me corro x2")
         player.setVelocity(scene.newDirectionPCS.x,scene.newDirectionPCS.y);
         scene.reboundS = false;
 
@@ -975,5 +1005,6 @@ class BoundStateSpike extends State {
   }
   
 }
+
 
 

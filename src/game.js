@@ -12,7 +12,7 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
-            debug: TextTrackCueList,
+            debug: false,
             gravity: { y: 0},
         },
     },
